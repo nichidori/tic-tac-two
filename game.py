@@ -7,27 +7,26 @@ class Mark(StrEnum):
 
 
 class Board:
-    def __init__(self, row_size, col_size):
-        self.grid = [[None for _ in range(col_size)] for _ in range(row_size)]
-        self.row_size = row_size
-        self.col_size = col_size
+    def __init__(self, size):
+        self.grid = [[None for _ in range(size)] for _ in range(size)]
+        self.size = size
 
     def __str__(self):
         out = ""
-        for row in range(self.row_size):
-            for col in range(self.col_size):
+        for row in range(self.size):
+            for col in range(self.size):
                 out += str(self.grid[row][col]) if self.grid[row][col] else "·"
 
-                if col < self.col_size - 1:
+                if col < self.size - 1:
                     out += " "
 
-            if row < self.row_size - 1:
+            if row < self.size - 1:
                 out += "\n"
 
         return out
 
     def mark(self, mark, row, col):
-        if row not in range(self.row_size) or col not in range(self.col_size):
+        if row not in range(self.size) or col not in range(self.size):
             raise Exception("Cannot mark outside of board bounds")
 
         if self.grid[row][col]:

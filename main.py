@@ -5,7 +5,7 @@ def main():
     print("Starting Tic Tac Two...\n")
 
     # Initialize board
-    board = Board(3, 3)
+    board = Board(3)
     print(board)
     print("\n")
 
