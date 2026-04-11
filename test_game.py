@@ -1,4 +1,4 @@
-from game import Board
+from game import Board, Mark
 
 
 def test_board_initialized_empty():
@@ -10,12 +10,13 @@ def test_board_initialized_empty():
 
 def test_board_str_empty():
     board = Board(3, 3)
-    expected = "· · ·\n· · ·\n· · ·\n"
+    expected = "· · ·\n· · ·\n· · ·"
     assert str(board) == expected
 
 
-def test_board_str_with_mark():
+def test_board_str_with_marks():
     board = Board(3, 3)
-    board.grid[1][1] = "X"
-    expected = "· · ·\n· X ·\n· · ·\n"
+    board.mark(Mark.CIRCLE, 0, 0)
+    board.mark(Mark.CROSS, 1, 1)
+    expected = f"{Mark.CIRCLE} · ·\n· {Mark.CROSS} ·\n· · ·"
     assert str(board) == expected
