@@ -1,43 +1,38 @@
-from game import Board, Marker
+from game import Game
 
 
 def main():
     print("Starting Tic Tac Two...\n")
 
-    # Initialize board
-    board = Board(3)
-    print(board)
+    # Initialize game
+    game = Game()
+    print(game.board)
     print("\n")
 
     # Game loop
-    turn = 1
     while True:
         try:
-            player = ((turn - 1) % 2) + 1
-            mark = Marker.O if player == 1 else Marker.X
-
-            print(f"[Turn {turn}] Player {player}")
+            print(f"[Turn {game.turn}] Player {game.current_player}")
 
             row = int(input("Row: "))
             col = int(input("Col: "))
-            board.mark(mark, row, col)
-            turn += 1
+            game.mark(row, col)
 
             print("\n")
-            print(board)
+            print(game.board)
 
-            finished, winning_marker = board.check_state()
+            finished, winner = game.get_state()
             if finished:
                 print("\n")
 
-                if winning_marker:
-                    winning_player = 1 if winning_marker == Marker.O else 2
-                    print(f"Player {winning_player} win!")
-
+                if winner:
+                    print(f"Player {winner} win!")
                 else:
                     print(f"Draw!")
 
                 break
+
+            game.next_turn()
 
         except Exception as e:
             print("\n")

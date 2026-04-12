@@ -25,35 +25,64 @@ class Board:
 
         return out
 
-    def mark(self, marker, row, col):
-        if row not in range(self.size) or col not in range(self.size):
+    def is_in_bounds(self, row, col):
+        return row in range(self.size) and col in range(self.size)
+
+    def is_marked(self, row, col):
+        return self.grid[row][col] is not None
+
+    def is_full(self):
+        return all(marker for row in self.grid for marker in row)
+
+
+class Game:
+    def __init__(self):
+        self.board = Board(3)
+        self.turn = 1
+        self.current_player = 1
+
+    def next_turn(self):
+        self.turn += 1
+        self.current_player = (self.turn - 1) % 2 + 1
+
+    def mark(self, row, col):
+        marker = Marker.O if self.current_player == 1 else Marker.X
+
+        if not self.board.is_in_bounds(row, col):
             raise Exception("Cannot mark outside of board bounds")
 
-        if self.grid[row][col]:
-            raise Exception(f"Cell {row},{col} is already marked")
+        if self.board.is_marked(row, col):
+            raise Exception(f"Cell is already marked")
 
-        self.grid[row][col] = marker
+        self.board.grid[row][col] = marker
 
-    def check_state(self):
+    def get_state(self):
+        winning_marker = self._get_winning_marker()
+
+        if winning_marker:
+            return True, 1 if winning_marker == Marker.O else 2
+
+        if self.board.is_full():
+            return True, None
+
+        return False, None
+
+    def _get_winning_marker(self):
         lines = []
+        size = self.board.size
 
-        # Rows and columns
-        for i in range(self.size):
-            lines.append([self.grid[i][col] for col in range(self.size)])
-            lines.append([self.grid[row][i] for row in range(self.size)])
+        # Check lines in rows and columns
+        for i in range(size):
+            lines.append([self.board.grid[i][col] for col in range(size)])
+            lines.append([self.board.grid[row][i] for row in range(size)])
 
-        # Diagonals
-        lines.append([self.grid[i][i] for i in range(self.size)])
-        lines.append([self.grid[i][self.size - 1 - i] for i in range(self.size)])
+        # Check lines in diagonals
+        lines.append([self.board.grid[i][i] for i in range(size)])
+        lines.append([self.board.grid[i][size - 1 - i] for i in range(size)])
 
         for line in lines:
             first = line[0]
             if first and all(marker == first for marker in line):
-                return True, first
+                return first
 
-        # Draw
-        flat = [marker for row in self.grid for marker in row]
-        if all(marker for marker in flat):
-            return True, None
-
-        return False, None
+        return None
