@@ -35,6 +35,21 @@ class Board:
         return all(marker for row in self.grid for marker in row)
 
 
+class GameStatus:
+    PLAYING = 1
+    WON = 2
+    DRAW = 3
+
+
+class GameState:
+    def __init__(self, board, turn, current_player, status, winner):
+        self.board = board
+        self.turn = turn
+        self.current_player = current_player
+        self.status = status
+        self.winner = winner
+
+
 class Game:
     def __init__(self):
         self.board = Board(3)
@@ -60,12 +75,22 @@ class Game:
         winning_marker = self._get_winning_marker()
 
         if winning_marker:
-            return True, 1 if winning_marker == Marker.O else 2
+            status = GameStatus.WON
+            winner = 1 if winning_marker == Marker.O else 2
+        elif self.board.is_full():
+            status = GameStatus.DRAW
+            winner = None
+        else:
+            status = GameStatus.PLAYING
+            winner = None
 
-        if self.board.is_full():
-            return True, None
-
-        return False, None
+        return GameState(
+            board=self.board,
+            turn=self.turn,
+            current_player=self.current_player,
+            status=status,
+            winner=winner,
+        )
 
     def _get_winning_marker(self):
         lines = []

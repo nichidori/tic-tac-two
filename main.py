@@ -1,44 +1,39 @@
 from game import Game
+from renderer import raw_mode, render, KEY
 
 
 def main():
-    print("Starting Tic Tac Two...\n")
-
     # Initialize game
     game = Game()
-    print(game.board)
-    print("\n")
-
-    # Game loop
-    while True:
-        try:
-            print(f"[Turn {game.turn}] Player {game.current_player}")
-
-            row = int(input("Row: "))
-            col = int(input("Col: "))
-            game.mark(row, col)
-
-            print("\n")
-            print(game.board)
-
-            finished, winner = game.get_state()
-            if finished:
-                print("\n")
-
-                if winner:
-                    print(f"Player {winner} win!")
-                else:
-                    print(f"Draw!")
-
-                break
-
-            game.next_turn()
-
-        except Exception as e:
-            print("\n")
-            print(e)
-        finally:
-            print("\n")
+    
+    # Enter terminal raw mode, automatically restore on finish
+    with raw_mode():
+        # Current cursor position at [row, col]
+        cursor = [0, 0] 
+        
+        while True:
+            state = game.get_state()
+            key = render(state, cursor)
+            
+            match key:
+                case KEY.CURSOR_UP:
+                    if cursor[0] > 0:
+                        cursor[0] -= 1
+                
+                case KEY.CURSOR_DOWN:
+                    if cursor[0] < state.board.size - 1:
+                        cursor[0] += 1
+                
+                case KEY.CURSOR_LEFT:
+                    if cursor[1] > 0:
+                        cursor[1] -= 1
+                
+                case KEY.CURSOR_RIGHT:
+                    if cursor[1] < state.board.size - 1:
+                        cursor[1] += 1
+                
+                case KEY.EXIT:
+                    break
 
 
 if __name__ == "__main__":
