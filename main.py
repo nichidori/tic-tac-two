@@ -32,6 +32,10 @@ def main():
                     if cursor[1] < state.board.size - 1:
                         cursor[1] += 1
                 
+                case KEY.SELECT:
+                    game.mark(cursor[0], cursor[1])
+                    game.next_turn()
+                
                 case KEY.EXIT:
                     break
 

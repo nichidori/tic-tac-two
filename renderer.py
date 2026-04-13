@@ -5,12 +5,15 @@ import termios
 from enum import Enum
 from contextlib import contextmanager
 
+from game import GameStatus
+
 
 class KEY(Enum):
     CURSOR_UP = 1
     CURSOR_DOWN = 2
     CURSOR_LEFT = 3
     CURSOR_RIGHT = 4
+    SELECT = 5
     EXIT = 99
 
 
@@ -83,17 +86,34 @@ def render(state, cursor):
     cursor_row = board_org_row + (cursor[0] * 2)
     cursor_col = board_org_col + (cursor[1] * 4) + 1
     sys.stdout.write(f"\033[{cursor_row};{cursor_col}H")
-    sys.stdout.write("[ ]")
+    sys.stdout.write("[")
+    sys.stdout.write(f"\033[{cursor_row};{cursor_col+2}H")
+    sys.stdout.write("]")
 
     # Go to position after board end
     sys.stdout.write(f"\033[{board_org_row + (board.size * 2) - 1};{0}H")
     sys.stdout.write("\r\n\r\n")
 
+    match state.status:
+        case GameStatus.WON:
+            sys.stdout.write(f"Player {state.winner} won!\r\n")
+            sys.stdout.write("Press any key to exit\r\n")
+
+        case GameStatus.DRAW:
+            sys.stdout.write(f"Draw!\r\n")
+            sys.stdout.write("Press any key to exit\r\n")
+
     # Push the entire frame to the screen at once
     sys.stdout.flush()
 
-    # Read input and return the key
-    return read_key()
+    # Read input
+    key = read_key()
+
+    # If game finished, exit on any key press
+    if state.status != GameStatus.PLAYING:
+        return KEY.EXIT
+
+    return key
 
 
 def read_key():
@@ -124,7 +144,11 @@ def read_key():
             return KEY.CURSOR_LEFT
         case "d":
             return KEY.CURSOR_RIGHT
-        
+
+        # Enter
+        case "\r":
+            return KEY.SELECT
+
         # Ctrl+C
         case "\x03":
             return KEY.EXIT
