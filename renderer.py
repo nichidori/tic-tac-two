@@ -5,7 +5,7 @@ import termios
 from enum import Enum
 from contextlib import contextmanager
 
-from game import GameStatus, Marker
+from game import GameStatus, Marker, MARKER_OF
 
 HLINE = "\u2501"
 VLINE = "\u2503"
@@ -14,6 +14,8 @@ PLUS = "\u254b"
 RED = "\033[31m"
 BLUE = "\033[34m"
 RESET = "\033[0m"
+
+COLOR_OF = {Marker.O: RED, Marker.X: BLUE}
 
 
 class KEY(Enum):
@@ -60,8 +62,8 @@ def render(state, cursor):
 
     sys.stdout.write("Tic Tac Two started!\r\n")
     sys.stdout.write("Press Ctrl+C to quit\r\n\r\n\r\n")
-    
-    player_color = RED if state.current_player_marker == Marker.O else BLUE
+
+    player_color = COLOR_OF[MARKER_OF[state.current_player]]
 
     sys.stdout.write(f"[Turn {state.turn}]")
     sys.stdout.write(f"{player_color} Player {state.current_player}{RESET}\r\n\r\n\r\n")
@@ -69,22 +71,10 @@ def render(state, cursor):
     # Draw board
     for row in range(board.size):
         for col in range(board.size):
-            match board.grid[row][col]:
-                # Check if this specific cell is currently decaying
-                case _ if (row, col) == state.decay_pos:
-                    color = ""
-
-                case Marker.O:
-                    color = RED
-
-                case Marker.X:
-                    color = BLUE
-
-                case _:
-                    color = ""
-
-            marker = str(board.grid[row][col]) if board.grid[row][col] else " "
-            sys.stdout.write(f"{color} {marker} {RESET}")
+            marker = board.grid[row][col]
+            marker_char = str(marker) if marker else " "
+            color = COLOR_OF[marker] if marker and (row, col) != state.decay_pos else ""
+            sys.stdout.write(f"{color} {marker_char} {RESET}")
 
             if col < board.size - 1:
                 sys.stdout.write(VLINE)
@@ -118,7 +108,8 @@ def render(state, cursor):
 
     match state.status:
         case GameStatus.WON:
-            sys.stdout.write(f"Player {state.winner} won!\r\n")
+            winner_color = COLOR_OF[MARKER_OF[state.winner]]
+            sys.stdout.write(f"{winner_color}Player {state.winner}{RESET} won!\r\n")
             sys.stdout.write("Press any key to exit\r\n")
 
         case GameStatus.DRAW:

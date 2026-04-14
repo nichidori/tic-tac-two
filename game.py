@@ -7,6 +7,10 @@ class Marker(StrEnum):
     X = "×"
 
 
+MARKER_OF = {1: Marker.O, 2: Marker.X}
+PLAYER_OF = {Marker.O: 1, Marker.X: 2}
+
+
 class Board:
     def __init__(self, size):
         self.grid = [[None for _ in range(size)] for _ in range(size)]
@@ -49,7 +53,6 @@ class GameState:
         turn,
         decay_pos,
         current_player,
-        current_player_marker,
         status,
         winner,
     ):
@@ -57,7 +60,6 @@ class GameState:
         self.turn = turn
         self.decay_pos = decay_pos
         self.current_player = current_player
-        self.current_player_marker = current_player_marker
         self.status = status
         self.winner = winner
 
@@ -84,15 +86,13 @@ class Game:
             self.decaying = True
 
     def mark(self, row, col):
-        marker = Marker.O if self.current_player == 1 else Marker.X
-
         if not self.board.is_in_bounds(row, col):
             raise Exception("Cannot mark outside of board bounds")
 
         if self.board.is_marked(row, col):
             raise Exception(f"Cell is already marked")
 
-        self.board.grid[row][col] = marker
+        self.board.grid[row][col] = MARKER_OF[self.current_player]
         self.marker_history.append((row, col))
 
     def decay(self):
@@ -109,7 +109,7 @@ class Game:
 
         if winning_marker:
             status = GameStatus.WON
-            winner = 1 if winning_marker == Marker.O else 2
+            winner = PLAYER_OF[winning_marker]
         elif self.board.is_full():
             status = GameStatus.DRAW
             winner = None
@@ -126,7 +126,6 @@ class Game:
                 else None
             ),
             current_player=self.current_player,
-            current_player_marker=Marker.O if self.current_player == 1 else Marker.X,
             status=status,
             winner=winner,
         )
