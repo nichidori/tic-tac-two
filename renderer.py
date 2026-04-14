@@ -60,9 +60,6 @@ def render(state, cursor):
     # Jump to top and clear to end
     sys.stdout.write("\033[H\033[J")
 
-    sys.stdout.write("Tic Tac Two started!\r\n")
-    sys.stdout.write("Press Ctrl+C to quit\r\n\r\n\r\n")
-
     player_color = COLOR_OF[MARKER_OF[state.current_player]]
 
     sys.stdout.write(f"[Turn {state.turn}]")
@@ -91,7 +88,7 @@ def render(state, cursor):
             sys.stdout.write("\r\n")
 
     # Board top left position
-    board_org_row = 8
+    board_org_row = 4
     board_org_col = 0
 
     # Draw cursor at selected cell
