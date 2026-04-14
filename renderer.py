@@ -122,6 +122,10 @@ def render(state, cursor):
     # If game finished, exit on any key press
     if state.status != GameStatus.PLAYING:
         return KEY.EXIT
+    
+    # Prevent marking if cell is already marked
+    if key == KEY.SELECT and board.is_marked(cursor[0], cursor[1]):
+        return None
 
     return key
 
