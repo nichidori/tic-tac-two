@@ -73,17 +73,18 @@ class Game:
         self.decaying = False
 
     def next_turn(self):
+        if self.decaying:
+            self.decay()
+
+        if self.turn >= self.board.size * 2:
+            self.decaying = True
+
         if self.get_state().status != GameStatus.PLAYING:
+            self.decaying = False
             return
 
         self.turn += 1
         self.current_player = (self.turn - 1) % 2 + 1
-
-        if self.decaying:
-            self.decay()
-
-        if self.turn > self.board.size * 2:
-            self.decaying = True
 
     def mark(self, row, col):
         if not self.board.is_in_bounds(row, col):
