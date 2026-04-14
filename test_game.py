@@ -1,4 +1,4 @@
-from game import Board, Game, Marker
+from game import Board, Game, GameStatus, Marker
 
 
 def test_board_initialized_empty():
@@ -45,32 +45,32 @@ def test_mark_already_marked_raises_exception():
 def test_state_win_by_row():
     game = Game()
     game.board.grid[0] = [Marker.O, Marker.O, Marker.O]
-    finished, winner = game.get_state()
-    assert finished and winner == 1
+    state = game.get_state()
+    assert state.status == GameStatus.WON and state.winner == 1
 
 
 def test_state_win_by_column():
     game = Game()
     for row in range(3):
         game.board.grid[row][0] = Marker.X
-    finished, winner = game.get_state()
-    assert finished and winner == 2
+    state = game.get_state()
+    assert state.status == GameStatus.WON and state.winner == 2
 
 
 def test_state_win_by_main_diagonal():
     game = Game()
     for i in range(3):
         game.board.grid[i][i] = Marker.O
-    finished, winner = game.get_state()
-    assert finished and winner == 1
+    state = game.get_state()
+    assert state.status == GameStatus.WON and state.winner == 1
 
 
 def test_state_win_by_anti_diagonal():
     game = Game()
     for i in range(3):
         game.board.grid[i][2 - i] = Marker.X
-    finished, winner = game.get_state()
-    assert finished and winner == 2
+    state = game.get_state()
+    assert state.status == GameStatus.WON and state.winner == 2
 
 
 def test_state_draw():
@@ -80,12 +80,12 @@ def test_state_draw():
         [Marker.O, Marker.X, Marker.X],
         [Marker.X, Marker.O, Marker.O],
     ]
-    finished, winner = game.get_state()
-    assert finished and winner is None
+    state = game.get_state()
+    assert state.status == GameStatus.DRAW and state.winner is None
 
 
 def test_state_unfinished():
     game = Game()
     game.mark(0, 0)
-    finished, _ = game.get_state()
-    assert not finished
+    state = game.get_state()
+    assert state.status == GameStatus.PLAYING and state.winner is None
