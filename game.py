@@ -1,3 +1,4 @@
+from collections import deque
 from enum import StrEnum
 
 
@@ -42,10 +43,21 @@ class GameStatus:
 
 
 class GameState:
-    def __init__(self, board, turn, current_player, status, winner):
+    def __init__(
+        self,
+        board,
+        turn,
+        decay_pos,
+        current_player,
+        current_player_marker,
+        status,
+        winner,
+    ):
         self.board = board
         self.turn = turn
+        self.decay_pos = decay_pos
         self.current_player = current_player
+        self.current_player_marker = current_player_marker
         self.status = status
         self.winner = winner
 
@@ -53,12 +65,23 @@ class GameState:
 class Game:
     def __init__(self):
         self.board = Board(3)
+        self.marker_history = deque()
         self.turn = 1
         self.current_player = 1
+        self.decaying = False
 
     def next_turn(self):
+        if self.get_state().status != GameStatus.PLAYING:
+            return
+
         self.turn += 1
         self.current_player = (self.turn - 1) % 2 + 1
+
+        if self.decaying:
+            self.decay()
+
+        if self.turn > self.board.size * 2:
+            self.decaying = True
 
     def mark(self, row, col):
         marker = Marker.O if self.current_player == 1 else Marker.X
@@ -70,6 +93,16 @@ class Game:
             raise Exception(f"Cell is already marked")
 
         self.board.grid[row][col] = marker
+        self.marker_history.append((row, col))
+
+    def decay(self):
+        # Get the oldest marker position
+        decay_pos = self.marker_history.popleft()
+
+        # Clear the marker at that position
+        if decay_pos:
+            row, col = decay_pos
+            self.board.grid[row][col] = None
 
     def get_state(self):
         winning_marker = self._get_winning_marker()
@@ -87,7 +120,13 @@ class Game:
         return GameState(
             board=self.board,
             turn=self.turn,
+            decay_pos=(
+                self.marker_history[0]
+                if self.marker_history and self.decaying
+                else None
+            ),
             current_player=self.current_player,
+            current_player_marker=Marker.O if self.current_player == 1 else Marker.X,
             status=status,
             winner=winner,
         )

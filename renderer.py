@@ -7,6 +7,14 @@ from contextlib import contextmanager
 
 from game import GameStatus, Marker
 
+HLINE = "\u2501"
+VLINE = "\u2503"
+PLUS = "\u254b"
+
+RED = "\033[31m"
+BLUE = "\033[34m"
+RESET = "\033[0m"
+
 
 class KEY(Enum):
     CURSOR_UP = 1
@@ -52,29 +60,29 @@ def render(state, cursor):
 
     sys.stdout.write("Tic Tac Two started!\r\n")
     sys.stdout.write("Press Ctrl+C to quit\r\n\r\n\r\n")
-    sys.stdout.write(f"[Turn {state.turn}] Player {state.current_player}\r\n\r\n\r\n")
-
-    HLINE = "\u2501"
-    VLINE = "\u2503"
-    PLUS = "\u254b"
     
-    RED = "\033[31m"
-    BLUE = "\033[34m"
-    RESET = "\033[0m"
+    player_color = RED if state.current_player_marker == Marker.O else BLUE
+
+    sys.stdout.write(f"[Turn {state.turn}]")
+    sys.stdout.write(f"{player_color} Player {state.current_player}{RESET}\r\n\r\n\r\n")
 
     # Draw board
     for row in range(board.size):
         for col in range(board.size):
             match board.grid[row][col]:
+                # Check if this specific cell is currently decaying
+                case _ if (row, col) == state.decay_pos:
+                    color = ""
+
                 case Marker.O:
                     color = RED
-                    
+
                 case Marker.X:
                     color = BLUE
-                
+
                 case _:
                     color = ""
-            
+
             marker = str(board.grid[row][col]) if board.grid[row][col] else " "
             sys.stdout.write(f"{color} {marker} {RESET}")
 
