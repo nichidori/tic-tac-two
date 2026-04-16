@@ -3,8 +3,8 @@ from enum import StrEnum
 
 
 class Marker(StrEnum):
-    O = "○"
-    X = "×"
+    O = "O"
+    X = "X"
 
 
 MARKER_OF = {1: Marker.O, 2: Marker.X}
