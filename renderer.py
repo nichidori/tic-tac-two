@@ -11,11 +11,9 @@ HLINE = "\u2501"
 VLINE = "\u2503"
 PLUS = "\u254b"
 
-RED = "\033[31m"
-BLUE = "\033[34m"
 RESET = "\033[0m"
 
-COLOR_OF = {Marker.O: RED, Marker.X: BLUE}
+COLOR_OF = {Marker.O: "\033[32m", Marker.X: "\033[34m"}
 
 
 class KEY(Enum):
@@ -54,7 +52,7 @@ def raw_mode():
         termios.tcsetattr(fd, termios.TCSADRAIN, old_attrs)
 
 
-def render(state, cursor):
+def render(state, cursor, player_1):
     board = state.board
 
     # Jump to top and clear to end
@@ -62,8 +60,11 @@ def render(state, cursor):
 
     player_color = COLOR_OF[MARKER_OF[state.current_player]]
 
+    our_turn = (state.current_player == 1) == player_1
+    turn = "Your Turn" if our_turn else "Opponent Turn"
+
     sys.stdout.write(f"[Turn {state.turn}]")
-    sys.stdout.write(f"{player_color} Player {state.current_player}{RESET}\r\n\r\n\r\n")
+    sys.stdout.write(f"{player_color} {turn}{RESET}\r\n\r\n\r\n")
 
     # Draw board
     for row in range(board.size):
@@ -91,13 +92,14 @@ def render(state, cursor):
     board_org_row = 4
     board_org_col = 0
 
-    # Draw cursor at selected cell
-    cursor_row = board_org_row + (cursor[0] * 2)
-    cursor_col = board_org_col + (cursor[1] * 4) + 1
-    sys.stdout.write(f"\033[{cursor_row};{cursor_col}H")
-    sys.stdout.write("[")
-    sys.stdout.write(f"\033[{cursor_row};{cursor_col+2}H")
-    sys.stdout.write("]")
+    # Draw cursor at selected cell if our turn
+    if our_turn:
+        cursor_row = board_org_row + (cursor[0] * 2)
+        cursor_col = board_org_col + (cursor[1] * 4) + 1
+        sys.stdout.write(f"\033[{cursor_row};{cursor_col}H")
+        sys.stdout.write("[")
+        sys.stdout.write(f"\033[{cursor_row};{cursor_col+2}H")
+        sys.stdout.write("]")
 
     # Go to position after board end
     sys.stdout.write(f"\033[{board_org_row + (board.size * 2) - 1};{0}H")
@@ -105,8 +107,9 @@ def render(state, cursor):
 
     match state.status:
         case GameStatus.WON:
+            winner = "You" if (state.winner == 1) == player_1 else "Opponent"
             winner_color = COLOR_OF[MARKER_OF[state.winner]]
-            sys.stdout.write(f"{winner_color}Player {state.winner}{RESET} won!\r\n")
+            sys.stdout.write(f"{winner_color}{winner}{RESET} won!\r\n")
             sys.stdout.write("Press any key to exit\r\n")
 
         case GameStatus.DRAW:
@@ -115,17 +118,25 @@ def render(state, cursor):
 
     # Push the entire frame to the screen at once
     sys.stdout.flush()
+    
+    # Return immediately without reading key presses if not our turn
+    if not our_turn and state.status == GameStatus.PLAYING:
+        return None
 
     # Read input
     key = read_key()
 
     # If game finished, exit on any key press
     if state.status != GameStatus.PLAYING:
-        return KEY.EXIT
-    
+        key = KEY.EXIT
+
     # Prevent marking if cell is already marked
     if key == KEY.SELECT and board.is_marked(cursor[0], cursor[1]):
-        return None
+        key = None
+
+    # Clear screen when exitting the game
+    if key == KEY.EXIT:
+        sys.stdout.write("\033[H\033[J")
 
     return key
 
