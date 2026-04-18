@@ -1,130 +1,144 @@
 import random
 
-from game import Game, GameStatus
-from network import (
-    start_server,
-    connect_server,
-    get_ip,
-    send_payload,
-    receive_payload,
-    PayloadType,
-)
-from renderer import raw_mode, render, KEY
+from enum import Enum
+
+import game
+import network
+import renderer
 
 
 # TODO: Handle socket and key presses simultaneously, use select?
 
-# TODO: Render the whole program in raw mode
+
+class Screen(Enum):
+    MAIN_MENU = 1
+    SERVER_STARTING = 2
+    CLIENT_STARTING = 3
+    GAME = 4
 
 
 def main():
-    while True:
-        print("Welcome to Tic Tac Two!\n")
+    screen = Screen.MAIN_MENU
 
-        print("(1) Start a game server")
-        print("(2) Connect to a game server")
-        print("(q) Quit")
+    # Session data
+    curr_sock, curr_player_1 = None, None
 
-        option = input("\nSelect an option: ")
-        print("")
+    # Enter terminal raw mode, automatically restore on finish
+    with renderer.raw_mode():
+        while True:
+            match screen:
+                case Screen.MAIN_MENU:
+                    key = renderer.draw_main_menu()
 
-        match option:
-            case "1":
-                server_ip = get_ip()
-                print(f"Server IP: {server_ip}")
-                print("Waiting for connection...")
+                    match key:
+                        case renderer.Key.START_SERVER:
+                            screen = Screen.SERVER_STARTING
 
-                sock = start_server()
+                        case renderer.Key.START_CLIENT:
+                            screen = Screen.CLIENT_STARTING
 
-                player_1 = random.choice([True, False])
-                send_payload(sock, PayloadType.SET_PLAYER, not player_1)
+                        case renderer.Key.EXIT:
+                            exit()
 
-                if sock:
-                    init_game(sock, player_1)
+                case Screen.SERVER_STARTING:
+                    server_ip = network.get_ip()
 
-            case "2":
-                server_ip = input("Server IP: ")
-                sock = connect_server(server_ip)
+                    renderer.draw_server_starting(server_ip)
 
-                payload = receive_payload(sock)
+                    sock = network.start_server()
 
-                if payload and payload[0] == PayloadType.SET_PLAYER:
-                    player_1 = payload[1]
+                    if sock:
+                        player_1 = random.choice([True, False])
+                        network.send_payload(
+                            sock,
+                            network.PayloadType.SET_PLAYER,
+                            not player_1,
+                        )
 
-                if sock:
-                    init_game(sock, player_1)
+                        curr_sock, curr_player_1 = sock, player_1
+                        screen = Screen.GAME
 
-            case "q":
-                exit()
+                case Screen.CLIENT_STARTING:
+                    renderer.draw_client_starting()
 
-            case _:
-                print("Please select a valid option.\n")
+                    sock = network.connect_server()
+
+                    if sock:
+                        payload = network.receive_payload(sock)
+
+                        if payload and payload[0] == network.PayloadType.SET_PLAYER:
+                            player_1 = payload[1]
+
+                        curr_sock, curr_player_1 = sock, player_1
+                        screen = Screen.GAME
+
+                case Screen.GAME:
+                    init_game(curr_sock, curr_player_1)
+                    
+                    curr_sock, curr_player_1 = None, None
+                    screen = Screen.MAIN_MENU
 
 
 def init_game(sock, player_1):
-    # Initialize game
-    game = Game()
+    # Initialize game and cursor position [row, col]
+    curr_game = game.Game()
+    cursor = [0, 0]
 
-    # Enter terminal raw mode, automatically restore on finish
-    with raw_mode():
-        # Current cursor position at [row, col]
-        cursor = [0, 0]
+    while True:
+        state = curr_game.get_state()
+        our_turn = (state.current_player == 1) == player_1
+        key = renderer.draw_game(state, cursor, player_1)
 
-        while True:
-            state = game.get_state()
+        # If opponent's turn and game not yet finished, wait for their action and handle
+        if not our_turn and state.status == game.GameStatus.PLAYING:
+            payload = network.receive_payload(sock)
 
-            our_turn = (state.current_player == 1) == player_1
+            if not payload:
+                print("Opponent has disconnected\r\n")
+                exit()
 
-            key = render(state, cursor, player_1)
+            type, data = payload
 
-            # If opponent's turn and game not yet finished, wait for their action and handle
-            if not our_turn and state.status == GameStatus.PLAYING:
-                payload = receive_payload(sock)
+            match type:
+                case network.PayloadType.MARK:
+                    row, col = data[0], data[1]
+                    curr_game.mark(row, col)
+                    curr_game.next_turn()
 
-                if not payload:
-                    print("Opponent has disconnected\r\n")
+                case network.PayloadType.EXIT:
+                    print("Opponent has exited the game\r\n")
                     exit()
 
-                type, data = payload
+            continue
 
-                match type:
-                    case PayloadType.MARK:
-                        row, col = data[0], data[1]
-                        game.mark(row, col)
-                        game.next_turn()
-                        
-                    case PayloadType.EXIT:
-                        print("Opponent has exited the game\r\n")
-                        exit()
+        # Otherwise, handle inputs
+        match key:
+            case renderer.Key.CURSOR_UP:
+                if cursor[0] > 0:
+                    cursor[0] -= 1
 
-                continue
+            case renderer.Key.CURSOR_DOWN:
+                if cursor[0] < state.board.size - 1:
+                    cursor[0] += 1
 
-            # Otherwise, handle inputs
-            match key:
-                case KEY.CURSOR_UP:
-                    if cursor[0] > 0:
-                        cursor[0] -= 1
+            case renderer.Key.CURSOR_LEFT:
+                if cursor[1] > 0:
+                    cursor[1] -= 1
 
-                case KEY.CURSOR_DOWN:
-                    if cursor[0] < state.board.size - 1:
-                        cursor[0] += 1
+            case renderer.Key.CURSOR_RIGHT:
+                if cursor[1] < state.board.size - 1:
+                    cursor[1] += 1
 
-                case KEY.CURSOR_LEFT:
-                    if cursor[1] > 0:
-                        cursor[1] -= 1
+            case renderer.Key.SELECT:
+                curr_game.mark(cursor[0], cursor[1])
+                network.send_payload(
+                    sock, network.PayloadType.MARK, cursor[0], cursor[1]
+                )
+                curr_game.next_turn()
 
-                case KEY.CURSOR_RIGHT:
-                    if cursor[1] < state.board.size - 1:
-                        cursor[1] += 1
-
-                case KEY.SELECT:
-                    game.mark(cursor[0], cursor[1])
-                    send_payload(sock, PayloadType.MARK, cursor[0], cursor[1])
-                    game.next_turn()
-
-                case KEY.EXIT:
-                    send_payload(sock, PayloadType.EXIT)
-                    break
+            case renderer.Key.EXIT:
+                network.send_payload(sock, network.PayloadType.EXIT)
+                break
 
 
 if __name__ == "__main__":
