@@ -139,23 +139,17 @@ def init_game(sock, player_1):
             key = ui.Key.EXIT
 
         match key:
-            # TODO: Move bound checking to input handler
-
             case ui.Key.CURSOR_UP:
-                if cursor_pos.row > 0:
-                    cursor_pos = cursor_pos.translated(-1, 0)
+                cursor_pos = cursor_pos.translated(-1, 0)
 
             case ui.Key.CURSOR_DOWN:
-                if cursor_pos.row < game_state.board.size - 1:
-                    cursor_pos = cursor_pos.translated(1, 0)
+                cursor_pos = cursor_pos.translated(1, 0)
 
             case ui.Key.CURSOR_LEFT:
-                if cursor_pos.col > 0:
-                    cursor_pos = cursor_pos.translated(0, -1)
+                cursor_pos = cursor_pos.translated(0, -1)
 
             case ui.Key.CURSOR_RIGHT:
-                if cursor_pos.col < game_state.board.size - 1:
-                    cursor_pos = cursor_pos.translated(0, 1)
+                cursor_pos = cursor_pos.translated(0, 1)
 
             case ui.Key.SELECT:
                 curr_game.mark(cursor_pos)

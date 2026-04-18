@@ -238,4 +238,13 @@ def handle_game_input(char, game_state, cursor_pos):
     if key == Key.SELECT and game_state.board.is_marked(cursor_pos):
         key = None
 
+    # Prevent cursor from going out of bounds
+    if (
+        (key == Key.CURSOR_UP and cursor_pos.row == 0)
+        or (key == Key.CURSOR_DOWN and cursor_pos.row == game_state.board.size - 1)
+        or (key == Key.CURSOR_LEFT and cursor_pos.col == 0)
+        or (key == Key.CURSOR_RIGHT and cursor_pos.col == game_state.board.size - 1)
+    ):
+        key = None
+
     return key
