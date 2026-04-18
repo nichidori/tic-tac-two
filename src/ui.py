@@ -5,7 +5,7 @@ import termios
 from enum import Enum
 from contextlib import contextmanager
 
-from src.game import GameStatus, Marker, MARKER_OF
+from src.game import GameStatus, Marker, MARKER_OF, Pos
 
 HLINE = "\u2501"
 VLINE = "\u2503"
@@ -48,7 +48,7 @@ def raw_mode():
     finally:
         # Clear terminal
         clear_screen()
-        
+
         # Show cursor
         sys.stdout.write("\033[?25h")
         sys.stdout.flush()
@@ -103,16 +103,16 @@ def draw_client_starting(server_ip=None):
     sys.stdout.flush()
 
 
-def draw_game(state, cursor, player_1, should_exit, error):
+def draw_game(game_state, cursor_pos, player_1, should_exit, error):
     clear_screen()
 
-    board = state.board
-    current_player_color = COLOR_OF[MARKER_OF[state.current_player]]
+    board = game_state.board
+    current_player_color = COLOR_OF[MARKER_OF[game_state.current_player]]
 
-    our_turn = (state.current_player == 1) == player_1
+    our_turn = (game_state.current_player == 1) == player_1
     turn = "Your Turn" if our_turn else "Opponent Turn"
 
-    sys.stdout.write(f"[Turn {state.turn}]")
+    sys.stdout.write(f"[Turn {game_state.turn}]")
     sys.stdout.write(f"{current_player_color} {turn}{RESET}\r\n\r\n\r\n")
 
     # Draw board
@@ -120,7 +120,13 @@ def draw_game(state, cursor, player_1, should_exit, error):
         for col in range(board.size):
             marker = board.grid[row][col]
             marker_char = str(marker) if marker else " "
-            color = COLOR_OF[marker] if marker and (row, col) != state.decay_pos else ""
+
+            color = (
+                COLOR_OF[marker]
+                if marker and Pos(row, col) != game_state.decay_pos
+                else ""
+            )
+
             sys.stdout.write(f"{color} {marker_char} {RESET}")
 
             if col < board.size - 1:
@@ -143,8 +149,8 @@ def draw_game(state, cursor, player_1, should_exit, error):
 
     # Draw cursor at selected cell if our turn
     if our_turn:
-        cursor_row = board_org_row + (cursor[0] * 2)
-        cursor_col = board_org_col + (cursor[1] * 4) + 1
+        cursor_row = board_org_row + (cursor_pos.row * 2)
+        cursor_col = board_org_col + (cursor_pos.col * 4) + 1
         sys.stdout.write(f"\033[{cursor_row};{cursor_col}H")
         sys.stdout.write("[")
         sys.stdout.write(f"\033[{cursor_row};{cursor_col+2}H")
@@ -157,10 +163,10 @@ def draw_game(state, cursor, player_1, should_exit, error):
     if not our_turn:
         sys.stdout.write(f"Waiting for opponent move...\r\n\r\n")
 
-    match state.status:
+    match game_state.status:
         case GameStatus.WON:
-            winner = "You" if (state.winner == 1) == player_1 else "Opponent"
-            winner_color = COLOR_OF[MARKER_OF[state.winner]]
+            winner = "You" if (game_state.winner == 1) == player_1 else "Opponent"
+            winner_color = COLOR_OF[MARKER_OF[game_state.winner]]
             sys.stdout.write(f"{winner_color}{winner} won!{RESET}\r\n")
 
         case GameStatus.DRAW:
@@ -195,7 +201,7 @@ def handle_main_menu_input(char):
     return key
 
 
-def handle_game_input(char, state, cursor):
+def handle_game_input(char, game_state, cursor_pos):
     match char:
         # Arrow keys
         case "\x1b[A":
@@ -229,7 +235,7 @@ def handle_game_input(char, state, cursor):
             key = None
 
     # Prevent marking if cell is already marked
-    if key == Key.SELECT and state.board.is_marked(cursor[0], cursor[1]):
+    if key == Key.SELECT and game_state.board.is_marked(cursor_pos):
         key = None
 
     return key

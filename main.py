@@ -87,21 +87,25 @@ def main():
 def init_game(sock, player_1):
     # Initialize game state
     curr_game = game.Game()
-    cursor = [0, 0]
+    cursor_pos = game.Pos(0, 0)
     error = None
 
     while True:
-        state = curr_game.get_state()
+        game_state = curr_game.get_state()
 
         # Check if game should not continue
-        should_exit = state.status != game.GameStatus.PLAYING or error
+        should_exit = game_state.status != game.GameStatus.PLAYING or error
 
-        ui.draw_game(state, cursor, player_1, should_exit, error)
+        ui.draw_game(game_state, cursor_pos, player_1, should_exit, error)
 
-        our_turn = (state.current_player == 1) == player_1
+        our_turn = (game_state.current_player == 1) == player_1
 
         # If opponent's turn and game not yet finished, wait for their action and handle
-        if not our_turn and state.status == game.GameStatus.PLAYING and not should_exit:
+        if (
+            not our_turn
+            and game_state.status == game.GameStatus.PLAYING
+            and not should_exit
+        ):
             payload = network.receive_payload(sock)
 
             if not payload:
@@ -113,7 +117,7 @@ def init_game(sock, player_1):
             match type:
                 case network.PayloadType.MARK:
                     row, col = data[0], data[1]
-                    curr_game.mark(row, col)
+                    curr_game.mark(game.Pos(row, col))
                     curr_game.next_turn()
 
                 case network.PayloadType.EXIT:
@@ -129,7 +133,7 @@ def init_game(sock, player_1):
             # Read the next 2 bytes ('[' and the direction letter)
             char += sys.stdin.read(2)
 
-        key = ui.handle_game_input(char, state, cursor)
+        key = ui.handle_game_input(char, game_state, cursor_pos)
 
         if should_exit:
             key = ui.Key.EXIT
@@ -138,25 +142,25 @@ def init_game(sock, player_1):
             # TODO: Move bound checking to input handler
 
             case ui.Key.CURSOR_UP:
-                if cursor[0] > 0:
-                    cursor[0] -= 1
+                if cursor_pos.row > 0:
+                    cursor_pos = cursor_pos.translated(-1, 0)
 
             case ui.Key.CURSOR_DOWN:
-                if cursor[0] < state.board.size - 1:
-                    cursor[0] += 1
+                if cursor_pos.row < game_state.board.size - 1:
+                    cursor_pos = cursor_pos.translated(1, 0)
 
             case ui.Key.CURSOR_LEFT:
-                if cursor[1] > 0:
-                    cursor[1] -= 1
+                if cursor_pos.col > 0:
+                    cursor_pos = cursor_pos.translated(0, -1)
 
             case ui.Key.CURSOR_RIGHT:
-                if cursor[1] < state.board.size - 1:
-                    cursor[1] += 1
+                if cursor_pos.col < game_state.board.size - 1:
+                    cursor_pos = cursor_pos.translated(0, 1)
 
             case ui.Key.SELECT:
-                curr_game.mark(cursor[0], cursor[1])
+                curr_game.mark(cursor_pos)
                 network.send_payload(
-                    sock, network.PayloadType.MARK, cursor[0], cursor[1]
+                    sock, network.PayloadType.MARK, cursor_pos.row, cursor_pos.col
                 )
                 curr_game.next_turn()
 

@@ -1,4 +1,4 @@
-from src.game import Board, Game, GameStatus, Marker
+from src.game import Board, Game, GameStatus, Marker, Pos
 
 
 def test_board_initialized_empty():
@@ -16,9 +16,9 @@ def test_board_str_empty():
 
 def test_board_str_with_marks():
     game = Game()
-    game.mark(0, 0)  # Player 1 = O
+    game.mark(Pos(0, 0))  # Player 1 = O
     game.next_turn()
-    game.mark(1, 1)  # Player 2 = X
+    game.mark(Pos(1, 1))  # Player 2 = X
     expected = f"{Marker.O} · ·\n· {Marker.X} ·\n· · ·"
     assert str(game.board) == expected
 
@@ -26,7 +26,7 @@ def test_board_str_with_marks():
 def test_mark_outside_bounds_raises_exception():
     game = Game()
     try:
-        game.mark(3, 0)
+        game.mark(Pos(3, 0))
         assert False, "Expected exception"
     except Exception as e:
         assert "Cannot mark outside of board bounds" in str(e)
@@ -34,9 +34,9 @@ def test_mark_outside_bounds_raises_exception():
 
 def test_mark_already_marked_raises_exception():
     game = Game()
-    game.mark(0, 0)
+    game.mark(Pos(0, 0))
     try:
-        game.mark(0, 0)
+        game.mark(Pos(0, 0))
         assert False, "Expected exception"
     except Exception as e:
         assert "Cell is already marked" in str(e)
@@ -86,6 +86,6 @@ def test_state_draw():
 
 def test_state_unfinished():
     game = Game()
-    game.mark(0, 0)
+    game.mark(Pos(0, 0))
     state = game.get_state()
     assert state.status == GameStatus.PLAYING and state.winner is None

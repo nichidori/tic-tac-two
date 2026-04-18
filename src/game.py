@@ -11,6 +11,20 @@ MARKER_OF = {1: Marker.O, 2: Marker.X}
 PLAYER_OF = {Marker.O: 1, Marker.X: 2}
 
 
+class Pos:
+    def __init__(self, row, col):
+        self.row = row
+        self.col = col
+
+    def __eq__(self, value):
+        return (
+            isinstance(value, Pos) and self.row == value.row and self.col == value.col
+        )
+
+    def translated(self, row, col):
+        return Pos(self.row + row, self.col + col)
+
+
 class Board:
     def __init__(self, size):
         self.grid = [[None for _ in range(size)] for _ in range(size)]
@@ -30,11 +44,11 @@ class Board:
 
         return out
 
-    def is_in_bounds(self, row, col):
-        return row in range(self.size) and col in range(self.size)
+    def is_in_bounds(self, pos):
+        return pos.row in range(self.size) and pos.col in range(self.size)
 
-    def is_marked(self, row, col):
-        return self.grid[row][col] is not None
+    def is_marked(self, pos):
+        return self.grid[pos.row][pos.col] is not None
 
     def is_full(self):
         return all(marker for row in self.grid for marker in row)
@@ -86,15 +100,15 @@ class Game:
         self.turn += 1
         self.current_player = (self.turn - 1) % 2 + 1
 
-    def mark(self, row, col):
-        if not self.board.is_in_bounds(row, col):
+    def mark(self, pos):
+        if not self.board.is_in_bounds(pos):
             raise Exception("Cannot mark outside of board bounds")
 
-        if self.board.is_marked(row, col):
+        if self.board.is_marked(pos):
             raise Exception(f"Cell is already marked")
 
-        self.board.grid[row][col] = MARKER_OF[self.current_player]
-        self.marker_history.append((row, col))
+        self.board.grid[pos.row][pos.col] = MARKER_OF[self.current_player]
+        self.marker_history.append(pos)
 
     def decay(self):
         # Get the oldest marker position
@@ -102,8 +116,7 @@ class Game:
 
         # Clear the marker at that position
         if decay_pos:
-            row, col = decay_pos
-            self.board.grid[row][col] = None
+            self.board.grid[decay_pos.row][decay_pos.col] = None
 
     def get_state(self):
         winning_marker = self._get_winning_marker()
