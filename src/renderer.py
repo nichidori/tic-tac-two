@@ -5,7 +5,7 @@ import termios
 from enum import Enum
 from contextlib import contextmanager
 
-from game import GameStatus, Marker, MARKER_OF
+from src.game import GameStatus, Marker, MARKER_OF
 
 HLINE = "\u2501"
 VLINE = "\u2503"

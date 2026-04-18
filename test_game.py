@@ -1,4 +1,4 @@
-from game import Board, Game, GameStatus, Marker
+from src.game import Board, Game, GameStatus, Marker
 
 
 def test_board_initialized_empty():

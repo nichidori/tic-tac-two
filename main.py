@@ -2,9 +2,9 @@ import random
 
 from enum import Enum
 
-import game
-import network
-import renderer
+import src.game as game
+import src.network as network
+import src.renderer as renderer
 
 
 # TODO: Handle socket and key presses simultaneously, use select?
@@ -74,7 +74,7 @@ def main():
 
                 case Screen.GAME:
                     init_game(curr_sock, curr_player_1)
-                    
+
                     curr_sock, curr_player_1 = None, None
                     screen = Screen.MAIN_MENU
 
