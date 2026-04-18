@@ -1,4 +1,5 @@
 import random
+import selectors
 import sys
 
 from enum import Enum
@@ -6,9 +7,6 @@ from enum import Enum
 import src.game as game
 import src.network as network
 import src.ui as ui
-
-
-# TODO: Handle socket and key presses simultaneously, use select?
 
 
 class Screen(Enum):
@@ -85,82 +83,102 @@ def main():
 
 
 def init_game(sock, player_1):
-    # Initialize game state
     curr_game = game.Game()
     cursor_pos = game.Pos(0, 0)
     error = None
+    needs_redraw = True
 
-    while True:
-        game_state = curr_game.get_state()
+    sel = selectors.DefaultSelector()
+    sel.register(sys.stdin, selectors.EVENT_READ, data="stdin")
+    sel.register(sock, selectors.EVENT_READ, data="socket")
 
-        # Check if game should not continue
-        should_exit = game_state.status != game.GameStatus.PLAYING or error
+    try:
+        while True:
+            game_state = curr_game.get_state()
+            should_exit = game_state.status != game.GameStatus.PLAYING or error
 
-        ui.draw_game(game_state, cursor_pos, player_1, should_exit, error)
+            if needs_redraw:
+                ui.draw_game(game_state, cursor_pos, player_1, should_exit, error)
+                needs_redraw = False
 
-        our_turn = (game_state.current_player == 1) == player_1
+            if should_exit:
+                # Block only on stdin, ignore socket events
+                for key, _ in sel.select():
+                    if key.data == "stdin":
+                        sys.stdin.read(1)
+                        network.send_payload(sock, network.PayloadType.EXIT)
+                        return
 
-        # If opponent's turn and game not yet finished, wait for their action and handle
-        if (
-            not our_turn
-            and game_state.status == game.GameStatus.PLAYING
-            and not should_exit
-        ):
-            payload = network.receive_payload(sock)
-
-            if not payload:
-                error = "Opponent has disconnected"
                 continue
 
-            type, data = payload
+            our_turn = (game_state.current_player == 1) == player_1
 
-            match type:
-                case network.PayloadType.MARK:
-                    row, col = data[0], data[1]
-                    curr_game.mark(game.Pos(row, col))
-                    curr_game.next_turn()
+            for key, _ in sel.select():
+                match key.data:
+                    case "socket":
+                        payload = network.receive_payload(sock)
 
-                case network.PayloadType.EXIT:
-                    error = "Opponent has quit the game"
+                        if not payload:
+                            error = "Opponent has disconnected"
+                            needs_redraw = True
+                            break
 
-            continue
+                        type, data = payload
+                        match type:
+                            case network.PayloadType.MARK:
+                                row, col = data[0], data[1]
+                                curr_game.mark(game.Pos(row, col))
+                                curr_game.next_turn()
+                                needs_redraw = True
 
-        # Otherwise, handle inputs
-        char = sys.stdin.read(1)
+                            case network.PayloadType.EXIT:
+                                error = "Opponent has quit the game"
+                                needs_redraw = True
 
-        # If we hit an escape character, check for an arrow sequence
-        if char == "\x1b":
-            # Read the next 2 bytes ('[' and the direction letter)
-            char += sys.stdin.read(2)
+                    case "stdin":
+                        char = sys.stdin.read(1)
+                        if char == "\x1b":
+                            char += sys.stdin.read(2)
 
-        key = ui.handle_game_input(char, game_state, cursor_pos)
+                        key = ui.handle_game_input(char, game_state, cursor_pos)
 
-        if should_exit:
-            key = ui.Key.EXIT
+                        if not our_turn and key == ui.Key.EXIT:
+                            network.send_payload(sock, network.PayloadType.EXIT)
+                            return
 
-        match key:
-            case ui.Key.CURSOR_UP:
-                cursor_pos = cursor_pos.translated(-1, 0)
+                        match key:
+                            case ui.Key.CURSOR_UP:
+                                cursor_pos = cursor_pos.translated(-1, 0)
+                                needs_redraw = True
 
-            case ui.Key.CURSOR_DOWN:
-                cursor_pos = cursor_pos.translated(1, 0)
+                            case ui.Key.CURSOR_DOWN:
+                                cursor_pos = cursor_pos.translated(1, 0)
+                                needs_redraw = True
 
-            case ui.Key.CURSOR_LEFT:
-                cursor_pos = cursor_pos.translated(0, -1)
+                            case ui.Key.CURSOR_LEFT:
+                                cursor_pos = cursor_pos.translated(0, -1)
+                                needs_redraw = True
 
-            case ui.Key.CURSOR_RIGHT:
-                cursor_pos = cursor_pos.translated(0, 1)
+                            case ui.Key.CURSOR_RIGHT:
+                                cursor_pos = cursor_pos.translated(0, 1)
+                                needs_redraw = True
 
-            case ui.Key.SELECT:
-                curr_game.mark(cursor_pos)
-                network.send_payload(
-                    sock, network.PayloadType.MARK, cursor_pos.row, cursor_pos.col
-                )
-                curr_game.next_turn()
+                            case ui.Key.SELECT:
+                                curr_game.mark(cursor_pos)
+                                network.send_payload(
+                                    sock,
+                                    network.PayloadType.MARK,
+                                    cursor_pos.row,
+                                    cursor_pos.col,
+                                )
+                                curr_game.next_turn()
+                                needs_redraw = True
 
-            case ui.Key.EXIT:
-                network.send_payload(sock, network.PayloadType.EXIT)
-                break
+                            case ui.Key.EXIT:
+                                network.send_payload(sock, network.PayloadType.EXIT)
+                                return
+    finally:
+        sel.close()
 
 
 if __name__ == "__main__":
