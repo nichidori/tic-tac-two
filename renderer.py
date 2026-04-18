@@ -57,7 +57,13 @@ def raw_mode():
 def draw_main_menu():
     clear_screen()
 
-    sys.stdout.write("Welcome to Tic Tac Two!\r\n\r\n")
+    sys.stdout.write("""
+ _____ _     _____         _____                   \r
+|_   _(_) __|_   _|_ _  __|_   _|_      _____      \r
+  | | | |/ __|| |/ _` |/ __|| | \ \ /\ / / _ \     \r
+  | | | | (__ | | (_| | (__ | |  \ V  V / (_) |    \r
+  |_| |_|\___||_|\__,_|\___||_|   \_/\_/ \___/     \r
+\r\n\r\n""")
 
     sys.stdout.write("Please select an option:\r\n")
     sys.stdout.write("(1) Start a game server\r\n")
