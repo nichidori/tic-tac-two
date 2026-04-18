@@ -74,7 +74,8 @@ def main():
 
                 case Screen.GAME:
                     init_game(curr_sock, curr_player_1)
-
+                    
+                    curr_sock.close()
                     curr_sock, curr_player_1 = None, None
                     screen = Screen.MAIN_MENU
 
