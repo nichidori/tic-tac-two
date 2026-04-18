@@ -116,7 +116,7 @@ def draw_client_starting(server_ip=None):
     sys.stdout.flush()
 
 
-def draw_game(state, cursor, player_1):
+def draw_game(state, cursor, player_1, error):
     clear_screen()
 
     board = state.board
@@ -168,24 +168,31 @@ def draw_game(state, cursor, player_1):
     sys.stdout.write("\r\n\r\n")
     
     if not our_turn:
-        sys.stdout.write(f"Waiting for opponent move...\r\n")
+        sys.stdout.write(f"Waiting for opponent move...\r\n\r\n")
 
     match state.status:
         case GameStatus.WON:
             winner = "You" if (state.winner == 1) == player_1 else "Opponent"
             winner_color = COLOR_OF[MARKER_OF[state.winner]]
             sys.stdout.write(f"{winner_color}{winner} won!{RESET}\r\n")
-            sys.stdout.write("Press any key to exit\r\n")
 
         case GameStatus.DRAW:
             sys.stdout.write(f"Draw!\r\n")
-            sys.stdout.write("Press any key to exit\r\n")
+            
+    # Check if game should not continue
+    should_exit = state.status != GameStatus.PLAYING or error
+    
+    if error:
+        sys.stdout.write(f"{error}\r\n")
+    
+    if should_exit:
+        sys.stdout.write("Press any key to exit\r\n")
 
     # Push the entire frame to the screen at once
     sys.stdout.flush()
 
     # Return immediately without reading key presses if not our turn
-    if not our_turn and state.status == GameStatus.PLAYING:
+    if not our_turn and state.status == GameStatus.PLAYING and not should_exit:
         return None
 
     # Read input
@@ -228,8 +235,8 @@ def draw_game(state, cursor, player_1):
         case _:
             key = None
 
-    # If game finished, exit on any key press
-    if state.status != GameStatus.PLAYING:
+    # If game should exit, exit on any key press
+    if should_exit:
         key = Key.EXIT
 
     # Prevent marking if cell is already marked

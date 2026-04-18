@@ -80,22 +80,23 @@ def main():
 
 
 def init_game(sock, player_1):
-    # Initialize game and cursor position [row, col]
+    # Initialize game state
     curr_game = game.Game()
     cursor = [0, 0]
+    error = None
 
     while True:
         state = curr_game.get_state()
         our_turn = (state.current_player == 1) == player_1
-        key = renderer.draw_game(state, cursor, player_1)
+        key = renderer.draw_game(state, cursor, player_1, error)
 
         # If opponent's turn and game not yet finished, wait for their action and handle
-        if not our_turn and state.status == game.GameStatus.PLAYING:
+        if not our_turn and state.status == game.GameStatus.PLAYING and not error:
             payload = network.receive_payload(sock)
 
             if not payload:
-                print("Opponent has disconnected\r\n")
-                exit()
+                error = "Opponent has disconnected"
+                continue
 
             type, data = payload
 
@@ -106,8 +107,7 @@ def init_game(sock, player_1):
                     curr_game.next_turn()
 
                 case network.PayloadType.EXIT:
-                    print("Opponent has exited the game\r\n")
-                    exit()
+                    error = "Opponent has quit the game"
 
             continue
 
