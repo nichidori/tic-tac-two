@@ -5,7 +5,7 @@ from enum import Enum
 
 import src.game as game
 import src.network as network
-import src.renderer as renderer
+import src.ui as ui
 
 
 # TODO: Handle socket and key presses simultaneously, use select?
@@ -25,29 +25,29 @@ def main():
     curr_sock, curr_player_1 = None, None
 
     # Enter terminal raw mode, automatically restore on finish
-    with renderer.raw_mode():
+    with ui.raw_mode():
         while True:
             match screen:
                 case Screen.MAIN_MENU:
-                    renderer.draw_main_menu()
+                    ui.draw_main_menu()
 
                     char = sys.stdin.read(1)
-                    key = renderer.handle_main_menu_input(char)
+                    key = ui.handle_main_menu_input(char)
 
                     match key:
-                        case renderer.Key.START_SERVER:
+                        case ui.Key.START_SERVER:
                             screen = Screen.SERVER_STARTING
 
-                        case renderer.Key.START_CLIENT:
+                        case ui.Key.START_CLIENT:
                             screen = Screen.CLIENT_STARTING
 
-                        case renderer.Key.EXIT:
+                        case ui.Key.EXIT:
                             exit()
 
                 case Screen.SERVER_STARTING:
                     server_ip = network.get_ip()
 
-                    renderer.draw_server_starting(server_ip)
+                    ui.draw_server_starting(server_ip)
 
                     sock = network.start_server()
 
@@ -63,7 +63,7 @@ def main():
                         screen = Screen.GAME
 
                 case Screen.CLIENT_STARTING:
-                    renderer.draw_client_starting()
+                    ui.draw_client_starting()
 
                     sock = network.connect_server()
 
@@ -96,7 +96,7 @@ def init_game(sock, player_1):
         # Check if game should not continue
         should_exit = state.status != game.GameStatus.PLAYING or error
 
-        renderer.draw_game(state, cursor, player_1, should_exit, error)
+        ui.draw_game(state, cursor, player_1, should_exit, error)
 
         our_turn = (state.current_player == 1) == player_1
 
@@ -129,38 +129,38 @@ def init_game(sock, player_1):
             # Read the next 2 bytes ('[' and the direction letter)
             char += sys.stdin.read(2)
 
-        key = renderer.handle_game_input(char, state, cursor)
+        key = ui.handle_game_input(char, state, cursor)
 
         if should_exit:
-            key = renderer.Key.EXIT
+            key = ui.Key.EXIT
 
         match key:
             # TODO: Move bound checking to input handler
 
-            case renderer.Key.CURSOR_UP:
+            case ui.Key.CURSOR_UP:
                 if cursor[0] > 0:
                     cursor[0] -= 1
 
-            case renderer.Key.CURSOR_DOWN:
+            case ui.Key.CURSOR_DOWN:
                 if cursor[0] < state.board.size - 1:
                     cursor[0] += 1
 
-            case renderer.Key.CURSOR_LEFT:
+            case ui.Key.CURSOR_LEFT:
                 if cursor[1] > 0:
                     cursor[1] -= 1
 
-            case renderer.Key.CURSOR_RIGHT:
+            case ui.Key.CURSOR_RIGHT:
                 if cursor[1] < state.board.size - 1:
                     cursor[1] += 1
 
-            case renderer.Key.SELECT:
+            case ui.Key.SELECT:
                 curr_game.mark(cursor[0], cursor[1])
                 network.send_payload(
                     sock, network.PayloadType.MARK, cursor[0], cursor[1]
                 )
                 curr_game.next_turn()
 
-            case renderer.Key.EXIT:
+            case ui.Key.EXIT:
                 network.send_payload(sock, network.PayloadType.EXIT)
                 break
 
