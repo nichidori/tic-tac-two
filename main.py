@@ -1,4 +1,5 @@
 import random
+import sys
 
 from enum import Enum
 
@@ -28,7 +29,10 @@ def main():
         while True:
             match screen:
                 case Screen.MAIN_MENU:
-                    key = renderer.draw_main_menu()
+                    renderer.draw_main_menu()
+
+                    char = sys.stdin.read(1)
+                    key = renderer.handle_main_menu_input(char)
 
                     match key:
                         case renderer.Key.START_SERVER:
@@ -74,7 +78,7 @@ def main():
 
                 case Screen.GAME:
                     init_game(curr_sock, curr_player_1)
-                    
+
                     curr_sock.close()
                     curr_sock, curr_player_1 = None, None
                     screen = Screen.MAIN_MENU
@@ -88,11 +92,16 @@ def init_game(sock, player_1):
 
     while True:
         state = curr_game.get_state()
+
+        # Check if game should not continue
+        should_exit = state.status != game.GameStatus.PLAYING or error
+
+        renderer.draw_game(state, cursor, player_1, should_exit, error)
+
         our_turn = (state.current_player == 1) == player_1
-        key = renderer.draw_game(state, cursor, player_1, error)
 
         # If opponent's turn and game not yet finished, wait for their action and handle
-        if not our_turn and state.status == game.GameStatus.PLAYING and not error:
+        if not our_turn and state.status == game.GameStatus.PLAYING and not should_exit:
             payload = network.receive_payload(sock)
 
             if not payload:
@@ -113,7 +122,21 @@ def init_game(sock, player_1):
             continue
 
         # Otherwise, handle inputs
+        char = sys.stdin.read(1)
+
+        # If we hit an escape character, check for an arrow sequence
+        if char == "\x1b":
+            # Read the next 2 bytes ('[' and the direction letter)
+            char += sys.stdin.read(2)
+
+        key = renderer.handle_game_input(char, state, cursor)
+
+        if should_exit:
+            key = renderer.Key.EXIT
+
         match key:
+            # TODO: Move bound checking to input handler
+
             case renderer.Key.CURSOR_UP:
                 if cursor[0] > 0:
                     cursor[0] -= 1

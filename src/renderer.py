@@ -46,6 +46,9 @@ def raw_mode():
         yield
 
     finally:
+        # Clear terminal
+        clear_screen()
+        
         # Show cursor
         sys.stdout.write("\033[?25h")
         sys.stdout.flush()
@@ -57,37 +60,20 @@ def raw_mode():
 def draw_main_menu():
     clear_screen()
 
-    sys.stdout.write("""
+    sys.stdout.write(
+        """
  _____ _     _____         _____                   \r
 |_   _(_) __|_   _|_ _  __|_   _|_      _____      \r
   | | | |/ __|| |/ _` |/ __|| | \ \ /\ / / _ \     \r
   | | | | (__ | | (_| | (__ | |  \ V  V / (_) |    \r
   |_| |_|\___||_|\__,_|\___||_|   \_/\_/ \___/     \r
-\r\n\r\n""")
+\r\n\r\n"""
+    )
 
     sys.stdout.write("Please select an option:\r\n")
     sys.stdout.write("(1) Start a game server\r\n")
     sys.stdout.write("(2) Connect to a game server\r\n")
     sys.stdout.write("(q) Quit\r\n")
-
-    # Read input
-    char = sys.stdin.read(1)
-
-    match char:
-        case "1":
-            key = Key.START_SERVER
-        case "2":
-            key = Key.START_CLIENT
-        case "q" | "\x03":
-            key = Key.EXIT
-        case _:
-            key = None
-
-    # Clear screen when exitting the game
-    if key == Key.EXIT:
-        sys.stdout.write("\033[H\033[J")
-
-    return key
 
 
 def draw_server_starting(server_ip):
@@ -100,7 +86,8 @@ def draw_server_starting(server_ip):
     sys.stdout.flush()
 
 
-# TODO: Reimplement server IP input 
+# TODO: Reimplement server IP input
+
 
 def draw_client_starting(server_ip=None):
     clear_screen()
@@ -116,7 +103,7 @@ def draw_client_starting(server_ip=None):
     sys.stdout.flush()
 
 
-def draw_game(state, cursor, player_1, error):
+def draw_game(state, cursor, player_1, should_exit, error):
     clear_screen()
 
     board = state.board
@@ -166,7 +153,7 @@ def draw_game(state, cursor, player_1, error):
     # Go to position after board end
     sys.stdout.write(f"\033[{board_org_row + (board.size * 2) - 1};{0}H")
     sys.stdout.write("\r\n\r\n")
-    
+
     if not our_turn:
         sys.stdout.write(f"Waiting for opponent move...\r\n\r\n")
 
@@ -178,31 +165,37 @@ def draw_game(state, cursor, player_1, error):
 
         case GameStatus.DRAW:
             sys.stdout.write(f"Draw!\r\n")
-            
-    # Check if game should not continue
-    should_exit = state.status != GameStatus.PLAYING or error
-    
+
     if error:
         sys.stdout.write(f"{error}\r\n")
-    
+
     if should_exit:
         sys.stdout.write("Press any key to exit\r\n")
 
     # Push the entire frame to the screen at once
     sys.stdout.flush()
 
-    # Return immediately without reading key presses if not our turn
-    if not our_turn and state.status == GameStatus.PLAYING and not should_exit:
-        return None
 
-    # Read input
-    char = sys.stdin.read(1)
+def clear_screen():
+    # Jump to top and clear to end
+    sys.stdout.write("\033[H\033[J")
 
-    # If we hit an escape character, check for an arrow sequence
-    if char == "\x1b":
-        # Read the next 2 bytes ('[' and the direction letter)
-        char += sys.stdin.read(2)
 
+def handle_main_menu_input(char):
+    match char:
+        case "1":
+            key = Key.START_SERVER
+        case "2":
+            key = Key.START_CLIENT
+        case "q" | "\x03":
+            key = Key.EXIT
+        case _:
+            key = None
+
+    return key
+
+
+def handle_game_input(char, state, cursor):
     match char:
         # Arrow keys
         case "\x1b[A":
@@ -235,21 +228,8 @@ def draw_game(state, cursor, player_1, error):
         case _:
             key = None
 
-    # If game should exit, exit on any key press
-    if should_exit:
-        key = Key.EXIT
-
     # Prevent marking if cell is already marked
-    if key == Key.SELECT and board.is_marked(cursor[0], cursor[1]):
+    if key == Key.SELECT and state.board.is_marked(cursor[0], cursor[1]):
         key = None
 
-    # Clear screen when exitting the game
-    if key == Key.EXIT:
-        clear_screen()
-
     return key
-
-
-def clear_screen():
-    # Jump to top and clear to end
-    sys.stdout.write("\033[H\033[J")
