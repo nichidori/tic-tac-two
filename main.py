@@ -1,6 +1,7 @@
 import random
 import selectors
 import sys
+import time
 
 from enum import Enum
 
@@ -52,9 +53,12 @@ def main():
                 case Screen.CLIENT_STARTING:
                     session = run_client_starting()
 
-                    if session:
-                        curr_session = session
-                        screen = Screen.GAME
+                    if not session:
+                        screen = Screen.MAIN_MENU
+                        continue
+
+                    curr_session = session
+                    screen = Screen.GAME
 
                 case Screen.GAME:
                     run_game(curr_session)
@@ -97,11 +101,10 @@ def run_server_starting():
     sel.register(sys.stdin, selectors.EVENT_READ, data="stdin")
     sel.register(server_sock, selectors.EVENT_READ, data="socket")
 
+    finish = False
     session = None
 
-    while True:
-        finish = False
-
+    while not finish:
         for key, _ in sel.select():
             match key.data:
                 case "socket":
@@ -117,7 +120,6 @@ def run_server_starting():
 
                         session = Session(sock, player_1)
                         finish = True
-                        break
 
                 case "stdin":
                     char = sys.stdin.read(1)
@@ -125,12 +127,9 @@ def run_server_starting():
 
                     if key == ui.Key.EXIT:
                         finish = True
-                        break
 
-        if finish:
-            sel.close()
-            server_sock.close()
-            break
+    sel.close()
+    server_sock.close()
 
     return session
 
@@ -138,16 +137,57 @@ def run_server_starting():
 def run_client_starting():
     ui.draw_client_starting()
 
-    sock = network.connect_server()
+    sel = selectors.DefaultSelector()
+    sel.register(sys.stdin, selectors.EVENT_READ, data="stdin")
 
-    if sock:
-        payload = network.receive_payload(sock)
-        if payload and payload[0] == network.PayloadType.SET_PLAYER:
-            player_1 = payload[1]
+    finish = False
+    session = None
 
-        return Session(sock, player_1)
+    while not finish:
+        sock = network.connect_server()
 
-    return None
+        if sock:
+            sel.register(sock, selectors.EVENT_READ, data="socket")
+
+            for key, _ in sel.select():
+                match key.data:
+                    case "socket":
+                        payload = network.receive_payload(sock)
+
+                        if payload and payload[0] == network.PayloadType.SET_PLAYER:
+                            player_1 = payload[1]
+
+                            session = Session(sock, player_1)
+                        else:
+                            sock.close()
+
+                        finish = True
+
+                    case "stdin":
+                        char = sys.stdin.read(1)
+                        key = ui.handle_client_starting_input(char)
+
+                        if key == ui.Key.EXIT:
+                            sock.close()
+                            finish = True
+
+            sel.unregister(sock)
+
+        else:
+            for key, _ in sel.select(timeout=0):
+                if key.data == "stdin":
+                    char = sys.stdin.read(1)
+                    key = ui.handle_client_starting_input(char)
+
+                    if key == ui.Key.EXIT:
+                        finish = True
+
+            # Delay before retrying connection
+            time.sleep(0.5)
+
+    sel.close()
+
+    return session
 
 
 def run_game(session):

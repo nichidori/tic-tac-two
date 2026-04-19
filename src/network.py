@@ -10,6 +10,7 @@ def start_server():
     try:
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
         server.bind(("0.0.0.0", PORT))
         server.listen(1)
         return server
@@ -23,7 +24,8 @@ def connect_server(server_ip="127.0.0.1"):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.connect((server_ip, PORT))
         return sock
-    except Exception as e:
+    except Exception:
+        sock.close()
         return None
 
 
