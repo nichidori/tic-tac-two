@@ -70,8 +70,8 @@ class ExitPayload(Payload):
         super().__init__(PayloadType.EXIT)
 
 
-def send_payload(socket, type, *data):
-    payload = encode_payload(type, *data)
+def send_payload(socket, payload):
+    payload = encode_payload(payload)
     socket.sendall(payload)
 
 
