@@ -16,107 +16,144 @@ class Screen(Enum):
     GAME = 4
 
 
+class Session:
+    def __init__(self, sock, player_1):
+        self.sock = sock
+        self.player_1 = player_1
+
+    def close(self):
+        self.sock.close()
+
+
 def main():
     screen = Screen.MAIN_MENU
-
-    # Session data
-    curr_sock, curr_player_1 = None, None
+    curr_session = None
 
     # Enter terminal raw mode, automatically restore on finish
     with ui.raw_mode():
         while True:
             match screen:
                 case Screen.MAIN_MENU:
-                    ui.draw_main_menu()
+                    next_screen = run_main_menu()
 
-                    char = sys.stdin.read(1)
-                    key = ui.handle_main_menu_input(char)
-
-                    match key:
-                        case ui.Key.START_SERVER:
-                            screen = Screen.SERVER_STARTING
-
-                        case ui.Key.START_CLIENT:
-                            screen = Screen.CLIENT_STARTING
-
-                        case ui.Key.EXIT:
-                            exit()
+                    if next_screen:
+                        screen = next_screen
 
                 case Screen.SERVER_STARTING:
-                    server_ip = network.get_ip()
+                    session = run_server_starting()
 
-                    ui.draw_server_starting(server_ip)
-
-                    server_sock = network.start_server()
-
-                    if not server_sock:
+                    if not session:
                         screen = Screen.MAIN_MENU
                         continue
 
-                    sel = selectors.DefaultSelector()
-                    sel.register(sys.stdin, selectors.EVENT_READ, data="stdin")
-                    sel.register(server_sock, selectors.EVENT_READ, data="socket")
-
-                    while True:
-                        stop_selector = False
-
-                        for key, _ in sel.select():
-                            match key.data:
-                                case "socket":
-                                    sock, _ = server_sock.accept()
-
-                                    if sock:
-                                        player_1 = random.choice([True, False])
-                                        network.send_payload(
-                                            sock,
-                                            network.PayloadType.SET_PLAYER,
-                                            not player_1,
-                                        )
-
-                                        curr_sock, curr_player_1 = sock, player_1
-                                        screen = Screen.GAME
-
-                                        stop_selector = True
-                                        break
-
-                                case "stdin":
-                                    char = sys.stdin.read(1)
-                                    key = ui.handle_server_starting_input(char)
-
-                                    if key == ui.Key.EXIT:
-                                        screen = Screen.MAIN_MENU
-
-                                        stop_selector = True
-                                        break
-
-                        if stop_selector:
-                            sel.close()
-                            server_sock.close()
-                            break
+                    curr_session = session
+                    screen = Screen.GAME
 
                 case Screen.CLIENT_STARTING:
-                    ui.draw_client_starting()
+                    session = run_client_starting()
 
-                    sock = network.connect_server()
-
-                    if sock:
-                        payload = network.receive_payload(sock)
-
-                        if payload and payload[0] == network.PayloadType.SET_PLAYER:
-                            player_1 = payload[1]
-
-                        curr_sock, curr_player_1 = sock, player_1
+                    if session:
+                        curr_session = session
                         screen = Screen.GAME
 
                 case Screen.GAME:
-                    init_game(curr_sock, curr_player_1)
+                    run_game(curr_session)
 
-                    curr_sock.close()
-                    curr_sock, curr_player_1 = None, None
+                    curr_session.close()
+                    curr_session = None
                     screen = Screen.MAIN_MENU
 
 
-def init_game(sock, player_1):
+def run_main_menu():
+    ui.draw_main_menu()
+
+    char = sys.stdin.read(1)
+    key = ui.handle_main_menu_input(char)
+
+    match key:
+        case ui.Key.START_SERVER:
+            return Screen.SERVER_STARTING
+
+        case ui.Key.START_CLIENT:
+            return Screen.CLIENT_STARTING
+
+        case ui.Key.EXIT:
+            exit()
+
+    return None
+
+
+def run_server_starting():
+    server_ip = network.get_ip()
+
+    ui.draw_server_starting(server_ip)
+
+    server_sock = network.start_server()
+
+    if not server_sock:
+        return None
+
+    sel = selectors.DefaultSelector()
+    sel.register(sys.stdin, selectors.EVENT_READ, data="stdin")
+    sel.register(server_sock, selectors.EVENT_READ, data="socket")
+
+    session = None
+
+    while True:
+        finish = False
+
+        for key, _ in sel.select():
+            match key.data:
+                case "socket":
+                    sock, _ = server_sock.accept()
+
+                    if sock:
+                        player_1 = random.choice([True, False])
+                        network.send_payload(
+                            sock,
+                            network.PayloadType.SET_PLAYER,
+                            not player_1,
+                        )
+
+                        session = Session(sock, player_1)
+                        finish = True
+                        break
+
+                case "stdin":
+                    char = sys.stdin.read(1)
+                    key = ui.handle_server_starting_input(char)
+
+                    if key == ui.Key.EXIT:
+                        finish = True
+                        break
+
+        if finish:
+            sel.close()
+            server_sock.close()
+            break
+
+    return session
+
+
+def run_client_starting():
+    ui.draw_client_starting()
+
+    sock = network.connect_server()
+
+    if sock:
+        payload = network.receive_payload(sock)
+        if payload and payload[0] == network.PayloadType.SET_PLAYER:
+            player_1 = payload[1]
+
+        return Session(sock, player_1)
+
+    return None
+
+
+def run_game(session):
+    sock = session.sock
+    player_1 = session.player_1
+
     curr_game = game.Game()
     cursor_pos = game.Pos(0, 0)
     error = None
