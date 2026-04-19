@@ -12,10 +12,7 @@ def start_server():
         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         server.bind(("0.0.0.0", PORT))
         server.listen(1)
-
-        client_sock, _ = server.accept()
-        server.close()
-        return client_sock
+        return server
     except Exception:
         server.close()
         return None

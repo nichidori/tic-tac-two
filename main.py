@@ -47,18 +47,52 @@ def main():
 
                     ui.draw_server_starting(server_ip)
 
-                    sock = network.start_server()
+                    server_sock = network.start_server()
 
-                    if sock:
-                        player_1 = random.choice([True, False])
-                        network.send_payload(
-                            sock,
-                            network.PayloadType.SET_PLAYER,
-                            not player_1,
-                        )
+                    if not server_sock:
+                        screen = Screen.MAIN_MENU
+                        continue
 
-                        curr_sock, curr_player_1 = sock, player_1
-                        screen = Screen.GAME
+                    sel = selectors.DefaultSelector()
+                    sel.register(sys.stdin, selectors.EVENT_READ, data="stdin")
+                    sel.register(server_sock, selectors.EVENT_READ, data="socket")
+
+                    while True:
+                        stop_selector = False
+
+                        for key, _ in sel.select():
+                            match key.data:
+                                case "socket":
+                                    sock, _ = server_sock.accept()
+
+                                    if sock:
+                                        player_1 = random.choice([True, False])
+                                        network.send_payload(
+                                            sock,
+                                            network.PayloadType.SET_PLAYER,
+                                            not player_1,
+                                        )
+
+                                        curr_sock, curr_player_1 = sock, player_1
+                                        screen = Screen.GAME
+
+                                        stop_selector = True
+                                        break
+
+                                case "stdin":
+                                    char = sys.stdin.read(1)
+                                    key = ui.handle_server_starting_input(char)
+
+                                    if key == ui.Key.EXIT:
+                                        screen = Screen.MAIN_MENU
+
+                                        stop_selector = True
+                                        break
+
+                        if stop_selector:
+                            sel.close()
+                            server_sock.close()
+                            break
 
                 case Screen.CLIENT_STARTING:
                     ui.draw_client_starting()

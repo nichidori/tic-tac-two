@@ -201,6 +201,10 @@ def handle_main_menu_input(char):
     return key
 
 
+def handle_server_starting_input(char):
+    return Key.EXIT if char == "\x03" else None
+
+
 def handle_game_input(char, game_state, cursor_pos):
     match char:
         # Arrow keys
