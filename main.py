@@ -144,6 +144,10 @@ def run_client_starting():
     session = None
 
     while not finish:
+        # Delay before connection to show loading state and
+        # avoid too many reconnection
+        time.sleep(0.5)
+                
         sock = network.connect_server()
 
         if sock:
@@ -181,9 +185,6 @@ def run_client_starting():
 
                     if key == ui.Key.EXIT:
                         finish = True
-
-            # Delay before retrying connection
-            time.sleep(0.5)
 
     sel.close()
 
