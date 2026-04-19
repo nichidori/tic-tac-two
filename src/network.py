@@ -47,6 +47,29 @@ class PayloadType(Enum):
     EXIT = 2
 
 
+class Payload:
+    def __init__(self, type):
+        self.type = type
+
+
+class SetPlayerPayload(Payload):
+    def __init__(self, player_1):
+        super().__init__(PayloadType.SET_PLAYER)
+        self.player_1 = player_1
+
+
+class MarkPayload(Payload):
+    def __init__(self, row, col):
+        super().__init__(PayloadType.MARK)
+        self.row = row
+        self.col = col
+
+
+class ExitPayload(Payload):
+    def __init__(self):
+        super().__init__(PayloadType.EXIT)
+
+
 def send_payload(socket, type, *data):
     payload = encode_payload(type, *data)
     socket.sendall(payload)
@@ -69,20 +92,20 @@ def receive_payload(socket):
     return decode_payload(type, data_bytes)
 
 
-def encode_payload(type, *data):
-    type_bytes = type.value.to_bytes(1)
+def encode_payload(payload):
+    type_bytes = payload.type.value.to_bytes(1)
 
-    match type:
-        case PayloadType.SET_PLAYER:
-            player_1 = int(data[0]).to_bytes(1)
+    match payload:
+        case SetPlayerPayload():
+            player_1 = int(payload.player_1).to_bytes(1)
             data_bytes = player_1
 
-        case PayloadType.MARK:
-            row = data[0].to_bytes(4)
-            col = data[1].to_bytes(4)
+        case MarkPayload():
+            row = payload.row.to_bytes(4)
+            col = payload.col.to_bytes(4)
             data_bytes = row + col
 
-        case PayloadType.EXIT:
+        case ExitPayload():
             data_bytes = bytes(1)
 
     len_bytes = len(data_bytes).to_bytes(2)
@@ -93,12 +116,12 @@ def decode_payload(type, data_bytes):
     match type:
         case PayloadType.SET_PLAYER:
             player_1 = data_bytes[0] == 1
-            return type, player_1
+            return SetPlayerPayload(player_1)
 
         case PayloadType.MARK:
             row = int.from_bytes(data_bytes[0:4])
             col = int.from_bytes(data_bytes[4:8])
-            return type, (row, col)
+            return MarkPayload(row, col)
 
         case PayloadType.EXIT:
-            return type, None
+            return ExitPayload()

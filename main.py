@@ -114,8 +114,7 @@ def run_server_starting():
                         player_1 = random.choice([True, False])
                         network.send_payload(
                             sock,
-                            network.PayloadType.SET_PLAYER,
-                            not player_1,
+                            network.SetPlayerPayload(not player_1),
                         )
 
                         session = Session(sock, player_1)
@@ -189,12 +188,11 @@ def run_client_starting():
                     case "socket":
                         payload = network.receive_payload(sock)
 
-                        if payload and payload[0] == network.PayloadType.SET_PLAYER:
-                            player_1 = payload[1]
-
-                            session = Session(sock, player_1)
-                        else:
-                            sock.close()
+                        match payload:
+                            case network.SetPlayerPayload():
+                                session = Session(sock, payload.player_1)
+                            case _:
+                                sock.close()
 
                         finish = True
 
@@ -249,7 +247,7 @@ def run_game(session):
                 for key, _ in sel.select():
                     if key.data == "stdin":
                         sys.stdin.read(1)
-                        network.send_payload(sock, network.PayloadType.EXIT)
+                        network.send_payload(sock, network.ExitPayload())
                         return
 
                 continue
@@ -266,15 +264,13 @@ def run_game(session):
                             needs_redraw = True
                             break
 
-                        type, data = payload
-                        match type:
-                            case network.PayloadType.MARK:
-                                row, col = data[0], data[1]
-                                curr_game.mark(game.Pos(row, col))
+                        match payload:
+                            case network.MarkPayload():
+                                curr_game.mark(game.Pos(payload.row, payload.col))
                                 curr_game.next_turn()
                                 needs_redraw = True
 
-                            case network.PayloadType.EXIT:
+                            case network.ExitPayload():
                                 error = "Opponent has quit the game"
                                 needs_redraw = True
 
@@ -286,7 +282,7 @@ def run_game(session):
                         key = ui.handle_game_input(char, game_state, cursor_pos)
 
                         if not our_turn and key == ui.Key.EXIT:
-                            network.send_payload(sock, network.PayloadType.EXIT)
+                            network.send_payload(sock, network.ExitPayload())
                             return
 
                         match key:
@@ -310,15 +306,13 @@ def run_game(session):
                                 curr_game.mark(cursor_pos)
                                 network.send_payload(
                                     sock,
-                                    network.PayloadType.MARK,
-                                    cursor_pos.row,
-                                    cursor_pos.col,
+                                    network.MarkPayload(cursor_pos.row, cursor_pos.col),
                                 )
                                 curr_game.next_turn()
                                 needs_redraw = True
 
                             case ui.Key.EXIT:
-                                network.send_payload(sock, network.PayloadType.EXIT)
+                                network.send_payload(sock, network.ExitPayload())
                                 return
     finally:
         sel.close()
