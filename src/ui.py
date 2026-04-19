@@ -22,6 +22,7 @@ class Key(Enum):
     CURSOR_LEFT = 3
     CURSOR_RIGHT = 4
     SELECT = 5
+    DELETE = 6
     START_SERVER = 97
     START_CLIENT = 98
     EXIT = 99
@@ -86,18 +87,20 @@ def draw_server_starting(server_ip):
     sys.stdout.flush()
 
 
-# TODO: Reimplement server IP input
-
-
-def draw_client_starting(server_ip=None):
+def draw_client_starting(server_ip, ip_set):
     clear_screen()
 
-    connecting_msg = (
-        "Connecting to server at {server_ip}..."
-        if server_ip
-        else "Connecting to local server..."
-    )
-    sys.stdout.write(f"{connecting_msg}\r\n\r\n")
+    sys.stdout.write("Please input the server IP\r\n")
+    sys.stdout.write("Leave blank to connect locally\r\n\r\n")
+    sys.stdout.write(f"Server IP: {server_ip}\r\n\r\n")
+
+    if ip_set:
+        connecting_msg = (
+            f"Connecting to server at {server_ip}..."
+            if server_ip
+            else "Connecting to local server..."
+        )   
+        sys.stdout.write(f"{connecting_msg}\r\n\r\n")
 
     # Push the entire frame to the screen at once
     sys.stdout.flush()
@@ -206,7 +209,19 @@ def handle_server_starting_input(char):
 
 
 def handle_client_starting_input(char):
-    return Key.EXIT if char == "\x03" else None
+    match char:
+        case "\r":
+            key = Key.SELECT
+        case "\x7f":
+            key = Key.DELETE
+        case "\x03":
+            key = Key.EXIT
+        case _ if char.isdigit() or char == ".":
+            key = char
+        case _:
+            key = None
+
+    return key
 
 
 def handle_game_input(char, game_state, cursor_pos):

@@ -135,7 +135,37 @@ def run_server_starting():
 
 
 def run_client_starting():
-    ui.draw_client_starting()
+    server_ip = ""
+    input_set = False
+
+    # Handle server ip input
+    while not input_set:
+        ui.draw_client_starting(server_ip, input_set)
+
+        char = sys.stdin.read(1)
+
+        # Ignore input if it start with escape character
+        if char == "\x1b":
+            sys.stdin.read(2)
+            continue
+
+        key = ui.handle_client_starting_input(char)
+
+        match key:
+            case ui.Key.SELECT:
+                input_set = True
+
+            case ui.Key.DELETE:
+                if server_ip:
+                    server_ip = server_ip[:-1]
+
+            case ui.Key.EXIT:
+                return None
+
+            case _ if isinstance(key, str):
+                server_ip += char
+
+    ui.draw_client_starting(server_ip, input_set)
 
     sel = selectors.DefaultSelector()
     sel.register(sys.stdin, selectors.EVENT_READ, data="stdin")
@@ -147,8 +177,9 @@ def run_client_starting():
         # Delay before connection to show loading state and
         # avoid too many reconnection
         time.sleep(0.5)
-                
-        sock = network.connect_server()
+
+        server_ip = server_ip if server_ip else "127.0.0.1"
+        sock = network.connect_server(server_ip)
 
         if sock:
             sel.register(sock, selectors.EVENT_READ, data="socket")
