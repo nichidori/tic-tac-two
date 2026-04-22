@@ -3,6 +3,12 @@
 Play Tic Tac Toe in the terminal over local network.
 
 
+
+https://github.com/user-attachments/assets/3769aabc-711b-4ad7-b21a-2546a1945973
+
+
+
+
 ## Background
 
 This project was made as a submission for [boot.dev](https://boot.dev)'s Back-end Developer Path first personal project course.
@@ -41,13 +47,16 @@ Notable standard libraries:
 
 ## Run
 
-To play the game, simply clone the repo and run the `main.py`.
+To play the game, simply clone the repo:
 
 ```
-# Clone project
 git clone https://github.com/nichidori/tic-tac-two.git
 cd tic-tac-two
+```
 
+Then run the `main.py`:
+
+```
 # Use uv to run
 uv run main.py
 
@@ -57,14 +66,14 @@ uv run main.py
 
 Make sure that Python (at least version `3.12`) and `uv` is installed.
 
-Note: This project uses some Unix-spesific modules, so it would not work on Windows.
+Note: This project uses some Unix-specific modules, so it would not work on Windows.
 
 
 ## Takeaways
 
-This was my first experience building a project with Python on my own. I surprisingly like the simplicity of the language. I found the dynamic typing approach kind of frightening, coming from a statically-typed language background, but it was definitely refreshing.
+This was my first experience building a project with Python on my own. I surprisingly like the simplicity of the language. I found the dynamic typing approach risky, coming from a statically-typed language background, but it was definitely refreshing.
 
-This was supposed to be a backend-focused course, but funnily enough I learnt a lot on building a UI from scratch without any framework. I needed to figure out a proper app architecture to split the code of different components based on their responsibility. I soon realized that I need to introduce the concept of screens and navigation, splitting render logic and input handler, and managing key presses and socket events simultaneously to avoid blocking the program.
+This was supposed to be a backend-focused course, but funnily enough I learnt a lot on building a UI from scratch without any framework. I needed to figure out a proper app architecture to split the code of different components based on their responsibility. I soon realized that I need to introduce the concept of screens and navigation, splitting render logic and input handler, and manage key presses and socket events simultaneously to avoid blocking the program.
 
 
 ## Future Improvements
